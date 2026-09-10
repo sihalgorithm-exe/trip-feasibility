@@ -1,7 +1,7 @@
 import TripSummary from './TripSummary.jsx';
 import DestinationRoute from './DestinationRoute.jsx';
 
-const AI_AGENT_URL = import.meta.env.VITE_AI_AGENT_URL || 'https://wayfare-ai-planner.example.com/plan';
+const AI_AGENT_URL = import.meta.env.VITE_AI_AGENT_URL || 'https://wayfare-ai-planner.onrender.com';
 
 export default function FeasibilityResult({ result, onChangeDestinations }) {
   const { feasible } = result;
