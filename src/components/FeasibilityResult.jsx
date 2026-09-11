@@ -3,17 +3,58 @@ import DestinationRoute from './DestinationRoute.jsx';
 
 const AI_AGENT_URL = import.meta.env.VITE_AI_AGENT_URL || 'https://wayfare-ai-planner.onrender.com';
 
-export default function FeasibilityResult({ result, onChangeDestinations }) {
+export default function FeasibilityResult({
+  result,
+  payload,
+  onChangeDestinations,
+}) {
   const { feasible } = result;
 
-  const handlePlanWithAI = () => {
-    const params = new URLSearchParams({
-      route: JSON.stringify(result.route),
-      days: result.numberOfDays,
-      hoursPerDay: result.hoursPerDay,
-    });
-    window.location.href = `${AI_AGENT_URL}?${params.toString()}`;
-  };
+  const handlePlanWithAI = async () => {
+  try {
+    const tripInput = {
+      ...payload,
+
+      trip: {
+        ...payload.trip,
+        numberOfDays: result.numberOfDays,
+        hoursPerDay: result.hoursPerDay,
+      },
+
+      destinations: result.route,
+
+      route: result.legs,
+
+      feasibility: {
+        feasible: result.feasible,
+        estimatedRequiredHours: result.estimatedRequiredHours,
+        availableHours: result.totalAvailableHours,
+      },
+    };
+
+    const response = await fetch(
+      `${AI_AGENT_URL}/api/trips`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(tripInput),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Could not start AI planning.');
+    }
+
+    window.location.href = `${AI_AGENT_URL}/plan/${data.sessionId}`;
+  } catch (err) {
+    console.error(err);
+    alert(err.message || 'Could not start AI planning.');
+  }
+};
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-16">
@@ -110,4 +151,4 @@ export default function FeasibilityResult({ result, onChangeDestinations }) {
       </div>
     </div>
   );
-}
+

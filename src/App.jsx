@@ -59,7 +59,11 @@ export default function App() {
 )}
 
         {result && (
-          <FeasibilityResult result={result} onChangeDestinations={handleChangeDestinations} />
+          <FeasibilityResult
+  result={result}
+  payload={payload}
+  onChangeDestinations={handleChangeDestinations}
+/>
         )}
       </main>
     </div>

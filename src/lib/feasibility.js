@@ -64,7 +64,7 @@ export function evaluateFeasibility(input, options = {}) {
     },
     maxDistanceKm,
     avgSpeedKmph,
-    route: orderedDestinations.map((d) => ({ id: d.id, name: d.name })),
+    route: orderedDestinations,
     legs: legs.map((leg) => ({
       from: leg.from.name,
       to: leg.to.name,
