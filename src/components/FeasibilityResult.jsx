@@ -56,12 +56,15 @@ export default function FeasibilityResult({
         }
       );
 
-      const data = await response.json();
+            const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Could not start AI planning.');
+        const detail = Array.isArray(data.details)
+          ? data.details.map((d) => `${d.instancePath || '(root)'} ${d.message}`).join('; ')
+          : '';
+        console.error('AI backend rejected trip input:', data);
+        throw new Error(detail ? `${data.error}: ${detail}` : (data.error || 'Could not start AI planning.'));
       }
-
       if (!data.sessionId) {
         throw new Error('AI backend did not return a session id.');
       }
