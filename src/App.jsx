@@ -14,10 +14,11 @@ export default function App() {
   useEffect(() => {
   const urlPayload = getTripPayloadFromUrl();
 
-  if (!urlPayload) {
-    window.location.replace(
-      import.meta.env.VITE_WAYFARE_URL || 'https://sih-tourism-frontend.onrender.com/'
-    );
+    if (!urlPayload) {
+    const wayfareBase = (
+      import.meta.env.VITE_WAYFARE_URL || 'https://sih-tourism-frontend.onrender.com'
+    ).replace(/\/+$/, '');
+    window.location.replace(`${wayfareBase}/recommendations`);
     return;
   }
 
@@ -36,10 +37,12 @@ export default function App() {
     setResult(evaluation);
   }
 
-  function handleChangeDestinations() {
-  window.location.replace(
-    import.meta.env.VITE_WAYFARE_URL || 'https://sih-tourism-frontend.onrender.com/'
-  );
+    function handleChangeDestinations() {
+  const wayfareBase = (
+    import.meta.env.VITE_WAYFARE_URL || 'https://sih-tourism-frontend.onrender.com'
+  ).replace(/\/+$/, ''); // strip any trailing slash so we don't get a double "//"
+
+  window.location.replace(`${wayfareBase}/recommendations`);
 }
 
   return (
