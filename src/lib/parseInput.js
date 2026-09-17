@@ -114,6 +114,18 @@ export function validateTripPayload(payload) {
     };
   }
 
+  // totalBudget is entirely optional - only validated if present.
+  if (
+    trip.totalBudget !== undefined &&
+    trip.totalBudget !== null &&
+    (typeof trip.totalBudget !== 'number' || !Number.isFinite(trip.totalBudget) || trip.totalBudget < 0)
+  ) {
+    return {
+      valid: false,
+      error: 'trip.totalBudget must be a non-negative number if provided.',
+    };
+  }
+
   if (!Array.isArray(destinations) || destinations.length === 0) {
     return {
       valid: false,

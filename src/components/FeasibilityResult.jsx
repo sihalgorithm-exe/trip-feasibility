@@ -38,12 +38,14 @@ export default function FeasibilityResult({
 
         route: result.legs,
 
-        feasibility: {
-          feasible: result.feasible,
-          estimatedRequiredHours: result.estimatedRequiredHours,
-          availableHours: result.totalAvailableHours,
-        },
-      };
+              feasibility: {
+        feasible: result.feasible,
+        estimatedRequiredHours: result.estimatedRequiredHours,
+        availableHours: result.totalAvailableHours,
+      },
+
+      budget: result.budget || null,
+    };
 
       const response = await fetch(
         `${AI_BACKEND_URL}/api/trips`,
@@ -147,6 +149,60 @@ export default function FeasibilityResult({
         )}
       </div>
 
+            {result.budget && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+          <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
+            Budget estimate
+          </h3>
+
+          {!result.budget.valid ? (
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              {result.budget.message}
+            </p>
+          ) : (
+            <>
+              <div className="text-sm text-slate-700 space-y-1">
+                <p>Total budget: <span className="font-medium">₹{result.budget.totalBudget.toLocaleString('en-IN')}</span></p>
+                <p>
+                  Estimated travel cost:{' '}
+                  <span className="font-medium">
+                    ₹{result.budget.estimatedTravelCost.min.toLocaleString('en-IN')}–₹{result.budget.estimatedTravelCost.max.toLocaleString('en-IN')}
+                  </span>
+                </p>
+                <p>
+                  Remaining for the rest of the trip:{' '}
+                  <span className="font-medium">
+                    ₹{result.budget.remainingBudget.min.toLocaleString('en-IN')}–₹{result.budget.remainingBudget.max.toLocaleString('en-IN')}
+                  </span>
+                </p>
+              </div>
+
+              <p className="text-xs text-slate-500 mt-3">
+                These are approximate ranges based on curated transport estimates, not live fares - actual costs can vary.
+              </p>
+
+              {result.budget.verdict === 'travel_exceeds_budget' && (
+                <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
+                  Even at the cheapest estimated option, transport alone is likely to exceed your budget.
+                  Consider increasing your budget or choosing destinations that are closer together.
+                </p>
+              )}
+
+              {result.budget.verdict === 'tight' && result.budget.verdict !== 'travel_exceeds_budget' && (
+                <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
+                  Your remaining budget after transport is quite small - accommodation and food options may be limited.
+                </p>
+              )}
+
+              {result.budget.hasUnresolvedLegs && (
+                <p className="text-xs text-slate-500 mt-3">
+                  No fare data available yet for: {result.budget.unresolvedLegs.map((l) => `${l.from} → ${l.to}`).join(', ')}. This leg isn't included in the estimate above.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
       <DestinationRoute route={result.route} legs={result.legs} />
 
       {/* CTA */}

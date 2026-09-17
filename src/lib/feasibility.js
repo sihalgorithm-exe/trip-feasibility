@@ -16,6 +16,7 @@ import {
   checkTimeConstraints,
   MAX_RECOMMENDED_DISTANCE_KM,
 } from './constraints.js';
+import { calculateBudget } from './budget.js';
 
 /**
  * evaluateFeasibility
@@ -50,6 +51,12 @@ export function evaluateFeasibility(input, options = {}) {
 
   const feasible = distanceIssues.length === 0 && timeIssues.length === 0;
 
+  const budget = calculateBudget({
+    totalBudget: trip.totalBudget,
+    legs,
+    travelEstimates: input.travelEstimates || [],
+  });
+
   return {
     feasible,
     numberOfDays: trip.numberOfDays,
@@ -72,5 +79,6 @@ export function evaluateFeasibility(input, options = {}) {
     })),
     distanceIssues,
     timeIssues,
+    budget, // null if no totalBudget was provided
   };
 }
