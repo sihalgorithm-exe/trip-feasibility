@@ -8,6 +8,54 @@ import DestinationRoute from './DestinationRoute.jsx';
 const AI_BACKEND_URL = import.meta.env.VITE_AI_BACKEND_URL;
 const AI_FRONTEND_URL = import.meta.env.VITE_AI_FRONTEND_URL;
 
+// Wayfare's own Spring Boot API (NOT the Wayfare frontend URL used elsewhere
+// in this app) - needed here only to fetch hotels for the trip's city.
+const WAYFARE_API_URL = import.meta.env.VITE_WAYFARE_API_URL;
+
+// Destinations carry a `city` field (see Wayfare's mapDestinationToFeasibility).
+// The AI Planner's schema requires trip.city, so we derive it from whichever
+// city appears most often among the selected destinations.
+function deriveTripCity(route) {
+  const counts = {};
+  for (const dest of route) {
+    if (!dest.city) continue;
+    counts[dest.city] = (counts[dest.city] || 0) + 1;
+  }
+  const entries = Object.entries(counts);
+  if (entries.length === 0) return undefined;
+  entries.sort((a, b) => b[1] - a[1]);
+  return entries[0][0];
+}
+
+// The AI Planner's schema requires a non-empty `hotels` array, scored purely
+// by distance/price/rating with no city filtering of its own - so hotels
+// MUST already be scoped to the right city before we send them.
+async function fetchHotelsForCity(city) {
+  if (!WAYFARE_API_URL || !city) return [];
+
+  try {
+    const response = await fetch(`${WAYFARE_API_URL}/hotels`);
+    if (!response.ok) return [];
+    const allHotels = await response.json();
+
+    return allHotels
+      .filter((h) => h.city === city)
+      .filter((h) => typeof h.latitude === 'number' && typeof h.longitude === 'number')
+      .map((h) => ({
+        id: h.id,
+        name: h.name,
+        latitude: h.latitude,
+        longitude: h.longitude,
+        pricePerNight: h.pricePerNight ?? 2500,
+        rating: h.rating ?? 3.5,
+        amenities: h.amenities || [],
+      }));
+  } catch (err) {
+    console.error('Could not fetch hotels for city', city, err);
+    return [];
+  }
+}
+
 export default function FeasibilityResult({
   result,
   payload,
@@ -25,11 +73,23 @@ export default function FeasibilityResult({
         );
       }
 
+      const city = deriveTripCity(result.route);
+      const hotels = await fetchHotelsForCity(city);
+
+      if (hotels.length === 0) {
+        throw new Error(
+          city
+            ? `Could not find any hotels in ${city} to recommend. Try different destinations or check back later.`
+            : 'Could not determine which city this trip is in, so hotels can\u2019t be suggested.'
+        );
+      }
+
       const tripInput = {
         ...payload,
 
         trip: {
           ...payload.trip,
+          city,
           numberOfDays: result.numberOfDays,
           hoursPerDay: result.hoursPerDay,
         },
@@ -43,6 +103,8 @@ export default function FeasibilityResult({
         estimatedRequiredHours: result.estimatedRequiredHours,
         availableHours: result.totalAvailableHours,
       },
+
+      hotels,
 
       budget: result.budget || null,
     };
