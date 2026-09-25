@@ -1,94 +1,98 @@
-# Wayfare: Trip Feasibility Engine
+# Wayfare Trip Feasibility
 
-Standalone React + Vite + Tailwind app that decides whether a user's
-selected destinations form a reasonable trip, **before** handing off to
-the AI travel-planning agent. All feasibility logic is deterministic
-(no LLM calls) and lives in `src/lib/`, isolated from the UI so it can
-be ported into the Spring Boot backend later with minimal changes.
+The Trip Feasibility Engine checks whether a user's selected destinations can reasonably fit into the available trip time before the AI planner creates an itinerary.
 
-## Project structure
+The important part of this project is that the feasibility decision is deterministic. It does not depend on an LLM.
 
-```
-src/
-  lib/
-    distance.js        # Haversine distance + distance matrix helper
-    route.js            # Route ordering (brute-force ≤6 stops, else nearest-neighbor)
-    time.js              # Travel time + total required time
-    constraints.js      # Distance/time threshold checks -> human-readable issues
-    feasibility.js       # evaluateFeasibility(): the single entry point
-    parseInput.js        # URL/base64 payload parsing + validation
-    sampleData.js        # Example feasible/infeasible payloads
-    feasibility.test.js  # Vitest unit tests for the modules above
-  components/
-    Header.jsx
-    TripInputForm.jsx     # Fallback demo UI when no payload is passed in
-    TripSummary.jsx
-    DestinationRoute.jsx
-    FeasibilityResult.jsx # Main result screen incl. AI redirect / change-destinations CTA
-  App.jsx
-  main.jsx
-```
+## Highlights
 
-## Setup
+- Calculates geographical distance between destinations
+- Builds a practical visiting order
+- Estimates travel and visit time
+- Checks trip time constraints
+- Checks distance constraints
+- Explains why a trip is considered infeasible
+- Uses deterministic logic instead of an AI model
+- Can hand a feasible trip over to the AI planning service
+- Includes unit tests for the core logic
+
+## Overview
+
+A trip planner should not ask an AI model to decide whether a group can physically cover a set of destinations within the available time.
+
+This project handles that first step.
+
+The selected destinations and trip details are passed to the feasibility engine. The engine calculates distances, creates a route, estimates the required time and checks the defined constraints.
+
+If the trip passes the checks, the user can continue to the AI planning stage. If it does not, the user is shown the reason and can change the selected destinations.
+
+The core logic is kept inside `src/lib/` so it can be tested separately from the React interface and can later be moved into the main Spring Boot backend.
+
+## Usage
+
+The main Wayfare application passes a trip to this application through a URL encoded payload. The application evaluates the trip and displays the result.
+
+## Installation
 
 ```bash
+git clone https://github.com/sihalgorithm-exe/trip-feasibility.git
+cd trip-feasibility
 npm install
-npm run dev       # http://localhost:5174
-npm run build      # production build -> dist/
-npm test           # run unit tests (vitest)
+npm run dev
 ```
 
-## How the main Wayfare app passes data in
+For a production build:
 
-This app expects a `?data=<base64>` query parameter containing the
-JSON trip payload, URL-and-JSON-encoded. From the main React app:
-
-```js
-import { encodeTripPayload } from './lib/parseInput'; // copy this helper into the main app, or share the package
-
-const payload = {
-  trip: { numberOfDays: 2, hoursPerDay: 8 },
-  destinations: [
-    { id: 1, name: 'Undavalli Caves', latitude: 16.485, longitude: 80.556, visitDurationHours: 2 },
-    { id: 2, name: 'Kondapalli Fort', latitude: 16.615, longitude: 80.542, visitDurationHours: 2 },
-  ],
-};
-
-const encoded = encodeTripPayload(payload);
-window.location.href = `https://feasibility.wayfare.app/?data=${encoded}`;
+```bash
+npm run build
 ```
 
-If you'd rather POST the payload to a small API route (e.g. a Spring
-Boot endpoint that this app then fetches from on load), swap
-`getTripPayloadFromUrl()` in `App.jsx` for a `fetch()` call: the rest
-of the pipeline (`validateTripPayload` → `evaluateFeasibility`) is
-unchanged either way.
+Run tests with:
 
-## How this redirects to the AI agent
-
-`FeasibilityResult.jsx` reads `VITE_AI_AGENT_URL` from the environment
-(`.env` file, default is a placeholder) and redirects with the
-computed route, day count, and hours/day as query params when the
-trip is feasible:
-
-```
-VITE_AI_AGENT_URL=https://your-ai-agent.example.com/plan
+```bash
+npm test
 ```
 
-If the trip is not feasible, no redirect happens: the user sees the
-reasoning and a "Change Destinations" button that resets local state.
+## How It Works
 
-## Example payloads
+```text
+Selected Destinations
+        ↓
+Validate Trip Data
+        ↓
+Calculate Distances
+        ↓
+Build Route
+        ↓
+Calculate Required Time
+        ↓
+Check Constraints
+        ↓
+   ┌────┴────┐
+   ↓         ↓
+Feasible  Infeasible
+   ↓         ↓
+AI Planner  Show Reason
+```
 
-See `src/lib/sampleData.js`:
-- `FEASIBLE_TRIP_EXAMPLE`: 3 nearby Vijayawada-area spots, 2 days × 8 hrs → recommended
-- `INFEASIBLE_DISTANCE_EXAMPLE`: Vijayawada → Visakhapatnam (~300 km) → rejected on distance
-- `INFEASIBLE_TIME_EXAMPLE`: same 3 nearby spots but only 1 day × 4 hrs → rejected on time
+For up to six stops, the route logic checks possible route orders. For larger trips, it uses a nearest neighbour approach.
 
-## Porting to Spring Boot later
+Distance is currently calculated using the Haversine formula. It is a geographical estimate and does not represent live road traffic or road conditions.
 
-Every file in `src/lib/` (except `parseInput.js`, which is browser/URL
-specific) is a pure function module with no React or DOM dependency.
-The Haversine formula, route permutation/nearest-neighbor logic, and
-threshold checks translate near line-for-line into Java service
-classes (`DistanceService`, `RouteService`, `FeasibilityService`).
+## Example Cases
+
+The repository includes cases of feasible trips, excessive distance and insufficient available time.
+
+## Related Projects
+
+- [Wayfare Frontend](https://github.com/sihalgorithm-exe/sih-tourism-frontend)
+- [Wayfare Backend](https://github.com/sihalgorithm-exe/sih-tourism-backend)
+- [Wayfare AI Frontend](https://github.com/sihalgorithm-exe/wayfare-ai-frontend)
+- [Wayfare AI Backend](https://github.com/sihalgorithm-exe/wayfare-ai-backend)
+
+
+## About
+
+Wayfare is being developed by the `Algorithm.exe` team as part of Smart India Hackathon.
+
+
